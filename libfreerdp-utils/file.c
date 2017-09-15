@@ -80,8 +80,15 @@ tbool freerdp_check_file_exists(char* file)
 
 char* freerdp_get_home_path(rdpSettings* settings)
 {
+	char* home_env = NULL;
+	
 	if (settings->home_path == NULL)
-		settings->home_path = getenv(HOME_ENV_VARIABLE);
+	{
+		home_env = getenv(HOME_ENV_VARIABLE);
+		
+		if (home_env)
+			settings->home_path = xstrdup(home_env);
+	}
 
 	//workaround if home_path still is null
 	//happens for exmaple if in /lib/systemd/system/xrdp.service the User line is missing:
