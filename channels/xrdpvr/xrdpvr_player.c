@@ -68,6 +68,16 @@ ubuntu 14.04
 #define LIBAVCODEC_VERSION_MINOR 35
 #define LIBAVCODEC_VERSION_MICRO  0
 
+ubuntu 16.04
+#define LIBAVCODEC_VERSION_MAJOR 56
+#define LIBAVCODEC_VERSION_MINOR 60
+#define LIBAVCODEC_VERSION_MICRO 100
+
+ubuntu 18.04
+#define LIBAVCODEC_VERSION_MAJOR 57
+#define LIBAVCODEC_VERSION_MINOR 107
+#define LIBAVCODEC_VERSION_MICRO 100
+
 debian 16.05
 #define LIBAVCODEC_VERSION_MAJOR 56
 #define LIBAVCODEC_VERSION_MINOR 60
@@ -115,6 +125,11 @@ debian 8
 #define DISTRO_UBUNTU1604
 #endif
 
+#if LIBAVCODEC_VERSION_MAJOR == 57 && LIBAVCODEC_VERSION_MINOR == 107
+#define DISTRO_UBUNTU1804
+#endif
+
+
 #if LIBAVCODEC_VERSION_MAJOR == 56 && LIBAVCODEC_VERSION_MINOR == 26
 #define DISTRO_DEBIAN8
 #endif
@@ -123,8 +138,29 @@ debian 8
 #if !defined(DISTRO_DEBIAN6) && !defined(DISTRO_UBUNTU1104) && \
     !defined(DISTRO_UBUNTU1111) && !defined(DISTRO_UBUNTU1204) && \
     !defined(DISTRO_DEBIAN7) && !defined(DISTRO_UBUNTU1404) && \
-    !defined(DISTRO_UBUNTU1604) && !defined(DISTRO_DEBIAN8)
+    !defined(DISTRO_UBUNTU1604) && !defined(DISTRO_UBUNTU1804) && !defined(DISTRO_DEBIAN8)
 #warning unsupported distro
+#endif
+
+#ifndef AVCODEC_MAX_AUDIO_FRAME_SIZE
+#define AVCODEC_MAX_AUDIO_FRAME_SIZE 192000 // 1 second of 48khz 32bit audio
+#endif
+
+#if LIBAVUTIL_VERSION_MAJOR < 52
+#define AV_PIX_FMT_YUV420P PIX_FMT_YUV420P
+#endif
+
+#if LIBAVCODEC_VERSION_MAJOR < 55
+#define AV_CODEC_ID_VC1 CODEC_ID_VC1
+#define AV_CODEC_ID_WMAV2 CODEC_ID_WMAV2
+#define AV_CODEC_ID_WMAPRO CODEC_ID_WMAPRO
+#define AV_CODEC_ID_MP3 CODEC_ID_MP3
+#define AV_CODEC_ID_MP2 CODEC_ID_MP2
+#define AV_CODEC_ID_MPEG2VIDEO CODEC_ID_MPEG2VIDEO
+#define AV_CODEC_ID_WMV3 CODEC_ID_WMV3
+#define AV_CODEC_ID_AAC CODEC_ID_AAC
+#define AV_CODEC_ID_H264 CODEC_ID_H264
+#define AV_CODEC_ID_AC3 CODEC_ID_AC3
 #endif
 
 //#include <freerdp/constants.h>
@@ -149,7 +185,7 @@ typedef struct player_state_info
     AVCodec         *video_codec;
     AVFrame         *audio_frame;
     AVFrame         *video_frame;
-#if defined(DISTRO_DEBIAN8) || defined(DISTRO_UBUNTU1604)
+#if defined(DISTRO_DEBIAN8) || defined(DISTRO_UBUNTU1604) || defined(DISTRO_UBUNTU1804)
     AVDictionary    *audio_codec_options;
     AVDictionary    *video_codec_options;
 #endif
@@ -191,11 +227,11 @@ static int display_picture(PLAYER_STATE_INFO *psi);
 #define CODEC_TYPE_AUDIO AVMEDIA_TYPE_AUDIO
 #endif
 
-#if defined(DISTRO_DEBIAN7) || defined(DISTRO_UBUNTU1404) || defined(DISTRO_UBUNTU1604) || defined(DISTRO_DEBIAN8)
+#if defined(DISTRO_DEBIAN7) || defined(DISTRO_UBUNTU1404) || defined(DISTRO_UBUNTU1604) || defined(DISTRO_UBUNTU1804) || defined(DISTRO_DEBIAN8)
 #define SAMPLE_FMT_U8 AV_SAMPLE_FMT_U8
 #endif
 
-#if defined(DISTRO_DEBIAN8) || defined(DISTRO_UBUNTU1604)
+#if defined(DISTRO_DEBIAN8) || defined(DISTRO_UBUNTU1604) || defined(DISTRO_UBUNTU1804)
 #define AVCODEC_MAX_AUDIO_FRAME_SIZE 192000
 #endif
 
@@ -227,7 +263,7 @@ void* init_player(void* plugin, char* filename)
     /* register all available fileformats and codecs */
     av_register_all();
 
-    psi->audio_codec = avcodec_find_decoder(CODEC_ID_AAC);
+    psi->audio_codec = avcodec_find_decoder(AV_CODEC_ID_AAC);
 
 #if defined(DISTRO_DEBIAN8) || defined(DISTRO_UBUNTU1604)
     psi->audio_codec_ctx = avcodec_alloc_context3(psi->audio_codec);
@@ -235,14 +271,14 @@ void* init_player(void* plugin, char* filename)
     psi->audio_codec_ctx = avcodec_alloc_context();
 #endif
 
-    psi->video_codec = avcodec_find_decoder(CODEC_ID_H264);
-#if defined(DISTRO_DEBIAN8) || defined(DISTRO_UBUNTU1604)
+    psi->video_codec = avcodec_find_decoder(AV_CODEC_ID_H264);
+#if defined(DISTRO_DEBIAN8) || defined(DISTRO_UBUNTU1604) || defined(DISTRO_UBUNTU1804)
     psi->video_codec_ctx = avcodec_alloc_context3(psi->video_codec);
 #else
     psi->video_codec_ctx = avcodec_alloc_context();
 #endif
 
-#if defined(DISTRO_DEBIAN8) || defined(DISTRO_UBUNTU1604)
+#if defined(DISTRO_DEBIAN8) || defined(DISTRO_UBUNTU1604) || defined(DISTRO_UBUNTU1804)
     psi->audio_frame = av_frame_alloc();
     psi->video_frame = av_frame_alloc();
 #else
@@ -415,7 +451,7 @@ set_audio_config(void* vp, char* extradata, int extradata_size,
     psi->audio_codec_ctx->block_align = block_align;
 #if defined(AV_CPU_FLAG_SSE2)
 
-#if defined(DISTRO_DEBIAN8) || defined(DISTRO_UBUNTU1604)
+#if defined(DISTRO_DEBIAN8) || defined(DISTRO_UBUNTU1604) || defined(DISTRO_UBUNTU1804)
     av_force_cpu_flags(AV_CPU_FLAG_SSE2 | AV_CPU_FLAG_MMX2);
 #else
     psi->audio_codec_ctx->dsp_mask = AV_CPU_FLAG_SSE2 | AV_CPU_FLAG_MMX2;
@@ -425,7 +461,7 @@ set_audio_config(void* vp, char* extradata, int extradata_size,
 
     #if LIBAVCODEC_VERSION_MAJOR < 53
 
-#if defined(DISTRO_DEBIAN8) || defined(DISTRO_UBUNTU1604)
+#if defined(DISTRO_DEBIAN8) || defined(DISTRO_UBUNTU1604) || defined(DISTRO_UBUNTU1804)
     av_force_cpu_flags(FF_MM_SSE2 | FF_MM_MMXEXT);
 #else
 	psi->audio_codec_ctx->dsp_mask = FF_MM_SSE2 | FF_MM_MMXEXT;
@@ -433,7 +469,7 @@ set_audio_config(void* vp, char* extradata, int extradata_size,
 
 #else
 
-#if defined(DISTRO_DEBIAN8) || defined(DISTRO_UBUNTU1604)
+#if defined(DISTRO_DEBIAN8) || defined(DISTRO_UBUNTU1604) || defined(DISTRO_UBUNTU1804)
     av_force_cpu_flags(FF_MM_SSE2 | FF_MM_MMX2);
 #else
 	psi->audio_codec_ctx->dsp_mask = FF_MM_SSE2 | FF_MM_MMX2;
@@ -447,7 +483,7 @@ set_audio_config(void* vp, char* extradata, int extradata_size,
         psi->audio_codec_ctx->flags |= CODEC_FLAG_TRUNCATED;
     }
 
-#if defined(DISTRO_DEBIAN8) || defined(DISTRO_UBUNTU1604)
+#if defined(DISTRO_DEBIAN8) || defined(DISTRO_UBUNTU1604) || defined(DISTRO_UBUNTU1804)
     if (avcodec_open2(psi->audio_codec_ctx, psi->audio_codec, &psi->audio_codec_options) < 0)
 
 #else
@@ -470,7 +506,7 @@ set_video_config(void *vp)
     PLAYER_STATE_INFO *psi = (PLAYER_STATE_INFO *) vp;
 
     printf("set_video_config:\n");
-#if defined(DISTRO_DEBIAN8) || defined(DISTRO_UBUNTU1604)
+#if defined(DISTRO_DEBIAN8) || defined(DISTRO_UBUNTU1604) || defined(DISTRO_UBUNTU1804)
     if (avcodec_open2(psi->video_codec_ctx, psi->video_codec, &psi->video_codec_options) < 0)
 
 #else
@@ -577,7 +613,7 @@ play_video(PLAYER_STATE_INFO *psi, struct AVPacket *av_pkt)
 
     psi->video_codec_ctx->width = 720;
     psi->video_codec_ctx->height = 404;
-    psi->video_codec_ctx->pix_fmt = PIX_FMT_YUV420P;
+    psi->video_codec_ctx->pix_fmt = AV_PIX_FMT_YUV420P;
 
 #ifdef DISTRO_DEBIAN6
     len = avcodec_decode_video(psi->video_codec_ctx, psi->video_frame, &got_frame, av_pkt->data, av_pkt->size);
@@ -607,7 +643,7 @@ play_video(PLAYER_STATE_INFO *psi, struct AVPacket *av_pkt)
 
     /* TODO where is this memory released? */
     psi->video_decoded_data = xzalloc(psi->video_decoded_size);
-#if defined(DISTRO_DEBIAN8) || defined(DISTRO_UBUNTU1604)
+#if defined(DISTRO_DEBIAN8) || defined(DISTRO_UBUNTU1604) || defined(DISTRO_UBUNTU1804)
     frame = av_frame_alloc();
 #else
     frame = avcodec_alloc_frame();
@@ -724,7 +760,7 @@ get_decoded_video_format(PLAYER_STATE_INFO *psi)
 {
     switch (psi->video_codec_ctx->pix_fmt)
     {
-        case PIX_FMT_YUV420P:
+        case AV_PIX_FMT_YUV420P:
             return RDP_PIXFMT_I420;
 
         default:
