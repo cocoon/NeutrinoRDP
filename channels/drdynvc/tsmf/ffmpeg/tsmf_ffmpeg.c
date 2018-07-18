@@ -39,12 +39,38 @@
 #define AVCODEC_MAX_AUDIO_FRAME_SIZE 192000 // 1 second of 48khz 32bit audio
 #endif
 
+#if LIBAVCODEC_VERSION_MAJOR < 55
+#define AV_CODEC_ID_VC1 CODEC_ID_VC1
+#define AV_CODEC_ID_WMAV2 CODEC_ID_WMAV2
+#define AV_CODEC_ID_WMAPRO CODEC_ID_WMAPRO
+#define AV_CODEC_ID_MP3 CODEC_ID_MP3
+#define AV_CODEC_ID_MP2 CODEC_ID_MP2
+#define AV_CODEC_ID_MPEG2VIDEO CODEC_ID_MPEG2VIDEO
+#define AV_CODEC_ID_WMV3 CODEC_ID_WMV3
+#define AV_CODEC_ID_AAC CODEC_ID_AAC
+#define AV_CODEC_ID_H264 CODEC_ID_H264
+#define AV_CODEC_ID_AC3 CODEC_ID_AC3
+#endif
+
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(56, 34, 2)
+#define AV_CODEC_CAP_TRUNCATED CODEC_CAP_TRUNCATED
+#define AV_CODEC_FLAG_TRUNCATED CODEC_FLAG_TRUNCATED
+#endif
+
+#if LIBAVUTIL_VERSION_MAJOR < 52
+#define AV_PIX_FMT_YUV420P PIX_FMT_YUV420P
+#endif
+
 typedef struct _TSMFFFmpegDecoder
 {
 	ITSMFDecoder iface;
 
 	int media_type;
+#if LIBAVCODEC_VERSION_MAJOR < 55
+	enum CodecID codec_id;
+#else
 	enum AVCodecID codec_id;
+#endif
 	AVCodecContext* codec_context;
 	AVCodec* codec;
 	AVFrame* frame;
@@ -79,8 +105,11 @@ static tbool tsmf_ffmpeg_init_video_stream(ITSMFDecoder* decoder, const TS_AM_ME
 	mdecoder->codec_context->time_base.den = media_type->SamplesPerSecond.Numerator;
 	mdecoder->codec_context->time_base.num = media_type->SamplesPerSecond.Denominator;
 
+#if LIBAVCODEC_VERSION_MAJOR < 55
 	mdecoder->frame = avcodec_alloc_frame();
-
+#else
+	mdecoder->frame = av_frame_alloc();
+#endif
 	return true;
 }
 
@@ -212,28 +241,28 @@ static tbool tsmf_ffmpeg_set_format(ITSMFDecoder* decoder, TS_AM_MEDIA_TYPE* med
 	switch (media_type->SubType)
 	{
 		case TSMF_SUB_TYPE_WVC1:
-			mdecoder->codec_id = CODEC_ID_VC1;
+			mdecoder->codec_id = AV_CODEC_ID_VC1;
 			break;
 		case TSMF_SUB_TYPE_WMA2:
-			mdecoder->codec_id = CODEC_ID_WMAV2;
+			mdecoder->codec_id = AV_CODEC_ID_WMAV2;
 			break;
 		case TSMF_SUB_TYPE_WMA9:
-			mdecoder->codec_id = CODEC_ID_WMAPRO;
+			mdecoder->codec_id = AV_CODEC_ID_WMAPRO;
 			break;
 		case TSMF_SUB_TYPE_MP3:
-			mdecoder->codec_id = CODEC_ID_MP3;
+			mdecoder->codec_id = AV_CODEC_ID_MP3;
 			break;
 		case TSMF_SUB_TYPE_MP2A:
-			mdecoder->codec_id = CODEC_ID_MP2;
+			mdecoder->codec_id = AV_CODEC_ID_MP2;
 			break;
 		case TSMF_SUB_TYPE_MP2V:
-			mdecoder->codec_id = CODEC_ID_MPEG2VIDEO;
+			mdecoder->codec_id = AV_CODEC_ID_MPEG2VIDEO;
 			break;
 		case TSMF_SUB_TYPE_WMV3:
-			mdecoder->codec_id = CODEC_ID_WMV3;
+			mdecoder->codec_id = AV_CODEC_ID_WMV3;
 			break;
 		case TSMF_SUB_TYPE_AAC:
-			mdecoder->codec_id = CODEC_ID_AAC;
+			mdecoder->codec_id = AV_CODEC_ID_AAC;
 			/* For AAC the pFormat is a HEAACWAVEINFO struct, and the codec data
 			   is at the end of it. See
 			   http://msdn.microsoft.com/en-us/library/dd757806.aspx */
@@ -245,13 +274,13 @@ static tbool tsmf_ffmpeg_set_format(ITSMFDecoder* decoder, TS_AM_MEDIA_TYPE* med
 			break;
 		case TSMF_SUB_TYPE_H264:
 		case TSMF_SUB_TYPE_AVC1:
-			mdecoder->codec_id = CODEC_ID_H264;
+			mdecoder->codec_id = AV_CODEC_ID_H264;
 			break;
 		case TSMF_SUB_TYPE_AC3:
-			mdecoder->codec_id = CODEC_ID_AC3;
+			mdecoder->codec_id = AV_CODEC_ID_AC3;
 			break;
 		case TSMF_SUB_TYPE_MPEG4:
-			mdecoder->codec_id = CODEC_ID_MPEG4;
+			mdecoder->codec_id = AV_CODEC_ID_MPEG4;
 			break;
 		default:
 			return false;
@@ -513,7 +542,7 @@ static uint32 tsmf_ffmpeg_get_decoded_format(ITSMFDecoder* decoder)
 
 	switch (mdecoder->codec_context->pix_fmt)
 	{
-		case PIX_FMT_YUV420P:
+		case AV_PIX_FMT_YUV420P:
 			return RDP_PIXFMT_I420;
 
 		default:
@@ -582,4 +611,3 @@ TSMFDecoderEntry(void)
 
 	return (ITSMFDecoder*) decoder;
 }
-
